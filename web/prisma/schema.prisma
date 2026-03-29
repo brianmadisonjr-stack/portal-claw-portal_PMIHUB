@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
   output   = "../src/generated/prisma"
 }
 
@@ -7,23 +8,142 @@ datasource db {
   provider = "postgresql"
 }
 
-model Profile {
-  id        String   @id @db.Uuid
-  email     String?  @unique
-  fullName  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("profiles")
+enum Certification {
+  PMP
+  CAPM
+  PfMP
+  PgMP
+  PMI_ACP
+  PMI_PBA
+  PMI_RMP
+  PMI_SP
+  PMI_CP
+  PMI_CPMAI
+  PMI_PMO_CP
 }
 
-model AuditLog {
-  id        String   @id @default(uuid()) @db.Uuid
-  actorId   String?  @db.Uuid
-  action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
+enum QuestionFormat {
+  SINGLE_CHOICE
+  MULTI_SELECT
+}
 
-  @@index([actorId])
-  @@map("audit_logs")
+enum AccountStage {
+  LEAD
+  QUALIFIED
+  ACTIVE
+  ALUMNI
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  WITHDRAWN
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+model Account {
+  id          String         @id @default(uuid())
+  name        String
+  industry    String?
+  stage       AccountStage   @default(LEAD)
+  ownerEmail  String?
+  notes       String?
+  enrollments Enrollment[]
+  invoices    Invoice[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Cohort {
+  id          String            @id @default(uuid())
+  title       String
+  certification Certification
+  startDate   DateTime?
+  endDate     DateTime?
+  capacity    Int?
+  enrollments Enrollment[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  cohortId    String
+  accountId   String
+  primaryLearnerEmail String?
+  status      EnrollmentStatus @default(PENDING)
+  readinessScore Int?
+  notes       String?
+  cohort      Cohort           @relation(fields: [cohortId], references: [id])
+  account     Account          @relation(fields: [accountId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@unique([cohortId, accountId])
+}
+
+model Invoice {
+  id            String       @id @default(uuid())
+  accountId     String
+  amountCents   Int
+  currency      String       @default("USD")
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime?
+  squareInvoiceId String?
+  account       Account      @relation(fields: [accountId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model QuestionDomain {
+  id             String         @id @default(uuid())
+  certification  Certification
+  name           String
+  description    String?
+  questions      PracticeQuestion[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  @@unique([certification, name])
+}
+
+model PracticeQuestion {
+  id             String          @id @default(uuid())
+  certification  Certification
+  format         QuestionFormat  @default(SINGLE_CHOICE)
+  stem           String
+  choiceA        String
+  choiceB        String
+  choiceC        String?
+  choiceD        String?
+  correctAnswer  String
+  explanation    String?
+  referenceText  String?
+  difficulty     Int?            @default(3)
+  domainId       String?
+  tags           String[]        @default([])
+  sourceWorkbook String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  domain         QuestionDomain? @relation(fields: [domainId], references: [id])
+  attempts       QuestionAttempt[]
+  @@index([certification])
+}
+
+model QuestionAttempt {
+  id           String           @id @default(uuid())
+  questionId   String
+  learnerEmail String?
+  selected     String[]
+  correct      Boolean
+  elapsedMs    Int?
+  certification Certification
+  createdAt    DateTime         @default(now())
+  question     PracticeQuestion @relation(fields: [questionId], references: [id])
+  @@index([learnerEmail])
 }
