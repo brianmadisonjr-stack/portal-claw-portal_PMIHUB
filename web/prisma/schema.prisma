@@ -7,14 +7,87 @@ datasource db {
   provider = "postgresql"
 }
 
-model Profile {
-  id        String   @id @db.Uuid
-  email     String?  @unique
-  fullName  String?
+enum UserRole {
+  ADMIN
+  STUDENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  REFUNDED
+}
+
+model User {
+  id         String @id @default(uuid()) @db.Uuid
+  // Supabase auth.users.id (UUID)
+  supabaseId String @unique @db.Uuid
+
+  email    String?  @unique
+  fullName String?
+  role     UserRole @default(STUDENT)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("profiles")
+  enrollments Enrollment[]
+  invoices    Invoice[]
+
+  @@map("users")
+}
+
+model Cohort {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+
+  @@map("cohorts")
+}
+
+model Enrollment {
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  cohortId String @db.Uuid
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cohortId])
+  @@index([cohortId])
+  @@map("enrollments")
+}
+
+model Invoice {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+
+  status      InvoiceStatus @default(OPEN)
+  currency    String        @default("USD")
+  amountCents Int
+
+  externalRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([externalRef])
+  @@map("invoices")
 }
 
 model AuditLog {
