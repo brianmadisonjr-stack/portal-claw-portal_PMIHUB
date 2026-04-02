@@ -1,20 +1,36 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/supabase-server";
 
-import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase-client";
+export default async function ProfilePage() {
+  const { session } = await getServerSession();
+  if (!session) {
+    redirect(`/login?next=${encodeURIComponent("/profile")}`);
+  }
 
-export default function ProfilePage() {
-  const [email, setEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    const supabase = supabaseBrowser();
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-  }, []);
+  const user = session.user;
 
   return (
-    <main style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700 }}>Profile</h1>
-      <p style={{ marginTop: 8 }}>Email: {email ?? "…"}</p>
+    <main className="min-h-screen bg-slate-50 px-4 py-16">
+      <div className="mx-auto w-full max-w-3xl space-y-8">
+        <header className="rounded-2xl border border-slate-200 bg-white/90 px-6 py-5 shadow-sm backdrop-blur">
+          <p className="text-sm uppercase tracking-widest text-blue-500">Profile</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Account details</h1>
+          <p className="text-sm text-slate-500">Manage the identity Supabase knows about you.</p>
+        </header>
+
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+          <dl className="space-y-4 text-sm text-slate-700">
+            <div>
+              <dt className="text-slate-500">Email</dt>
+              <dd className="font-medium text-slate-900">{user.email}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">User ID</dt>
+              <dd className="font-mono text-xs text-slate-900">{user.id}</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
     </main>
   );
 }

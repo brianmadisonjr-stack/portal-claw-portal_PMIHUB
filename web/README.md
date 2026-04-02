@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PM Intelligence Hub – Web App
 
-## Getting Started
+Next.js 16 portal for PMI Training that talks to Supabase (auth + Postgres) via Prisma. This readme replaces the default create-next-app boilerplate so new contributors can actually get running.
 
-First, run the development server:
+## Stack
+- **Framework:** Next.js 16 (App Router) + React 19
+- **Styling:** Tailwind CSS v4
+- **Auth:** Supabase Auth helpers (`@supabase/auth-helpers-nextjs`)
+- **Database:** Supabase Postgres (Prisma ORM)
+- **Billing:** Square (not wired yet – coming next)
 
+## Local development
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd web
+cp .env.example .env.local   # fill in Supabase + database creds
+npm install
+npm run dev -- --port 4000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The dev server binds to `0.0.0.0:4000` to match production. Adjust the port via `APP_PORT` if needed.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
+| Name | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (safe to expose to browser) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key for client-side auth |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service key (never ship to browser) – used for Admin scripts/webhooks |
+| `DATABASE_URL` | Postgres connection string (Supabase or a local Postgres) |
+| `SQUARE_ENV` | `production` or `sandbox` |
+| `APP_HOST` / `APP_PORT` | Used by deployment scripts/systemd |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Prisma & database
+We are on Prisma 7 with `prisma.config.ts` feeding the datasource, so the CLI reads `DATABASE_URL` from there.
 
-## Learn More
+Common commands:
+```bash
+# Format + validate schema
+npx prisma format
 
-To learn more about Next.js, take a look at the following resources:
+# Regenerate the Prisma client (outputs to src/generated/prisma)
+npx prisma generate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Apply new schema changes
+npx prisma migrate dev --name <migration_name>
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The latest migration (`20260331193634_rbac_guardrails`) introduces:
+- `AccountRole` enum
+- `UserProfile` table (links Supabase user IDs to internal data)
+- `AccountMembership` table (user ↔ account role assignments)
 
-## Deploy on Vercel
+## Auth helpers
+- **Client:** `src/lib/supabase-client.ts`
+- **Server:** `src/lib/supabase-server.ts` (new) exposes `supabaseServer`, `getServerSession`, and `requireServerSession` for use in server components, actions, or API routes.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Routes under `/dashboard`, `/profile`, `/admin`, `/billing`, and `/app/*` are protected by middleware. Auth pages auto-redirect to `/dashboard` when a session already exists.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment quick notes
+- Systemd unit: `portal-app.service` runs `npm run start -- --port 4000`
+- Reverse proxy: Caddy should forward `app.pmintelligencehub.com` → `127.0.0.1:4000`
+- Add security headers (CSP, `frame-ancestors`, HSTS, `Permissions-Policy`) in the Caddy config. See `/README.md` for the ops overview.
+
+## Next steps
+1. Finish Supabase signup/login polish and land the auth commit.
+2. Run the PMP workbook importer once auth is stable.
+3. Wire Square invoicing + webhooks (requires server-side `SUPABASE_SERVICE_ROLE_KEY`).
+4. Add API routes/server actions that enforce account membership using the new Prisma models.

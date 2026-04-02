@@ -1,47 +1,32 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase-client";
+import { AuthForm } from "@/components/auth-form";
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const supabase = supabaseBrowser();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: "https://app.pmintelligencehub.com/dashboard",
-      },
-    });
-    setLoading(false);
-    if (error) return setError(error.message);
-    router.push("/login");
-  }
-
   return (
-    <main style={{ maxWidth: 520, margin: "40px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700 }}>Sign up</h1>
-      <form onSubmit={onSubmit} style={{ marginTop: 16, display: "grid", gap: 12 }}>
-        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button type="submit" disabled={loading}>
-          {loading ? "Creating…" : "Create account"}
-        </button>
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <p style={{ fontSize: 12, color: "#555" }}>
-          Note: if email confirmations are enabled in Supabase, you’ll need to confirm the link.
-        </p>
-      </form>
+    <main className="min-h-screen bg-gradient-to-b from-white to-slate-50 px-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 py-16 lg:flex-row lg:items-center lg:py-24">
+        <section className="flex-1 space-y-6 text-zinc-700">
+          <p className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-emerald-700">
+            New to PM Intelligence Hub?
+          </p>
+          <div>
+            <h1 className="text-3xl font-semibold text-zinc-900 lg:text-4xl">Spin up your portal credentials</h1>
+            <p className="mt-4 text-base text-zinc-500 lg:text-lg">
+              Create an account to invite cohorts, monitor readiness, and sync billing—Supabase auth keeps everything secure by default.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
+            <p className="text-sm font-semibold text-emerald-800">What you unlock:</p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-600">
+              <li>Role-aware access to CRM + learning data models.</li>
+              <li>Square-ready invoicing tied to each account.</li>
+              <li>Upcoming PMP workbook imports and practice analytics.</li>
+            </ul>
+          </div>
+        </section>
+        <div className="flex-1">
+          <AuthForm variant="signup" />
+        </div>
+      </div>
     </main>
   );
 }

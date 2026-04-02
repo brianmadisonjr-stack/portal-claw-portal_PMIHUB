@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 
-const PROTECTED = ["/dashboard", "/profile"]; 
+const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/admin", "/billing", "/app"];
+const AUTH_PAGES = ["/login", "/signup"] as const;
+const DEFAULT_APP_ROUTE = "/dashboard";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -26,18 +28,19 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const isProtected = PROTECTED.some((p) => req.nextUrl.pathname.startsWith(p));
+  const pathname = req.nextUrl.pathname;
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   if (isProtected && !session) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", req.nextUrl.pathname);
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
 
-  const isAuthPage = ["/login", "/signup"].some((p) => req.nextUrl.pathname.startsWith(p));
+  const isAuthPage = AUTH_PAGES.some((prefix) => pathname.startsWith(prefix));
   if (isAuthPage && session) {
     const url = req.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = DEFAULT_APP_ROUTE;
     return NextResponse.redirect(url);
   }
 
@@ -45,5 +48,13 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/profile/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/profile/:path*",
+    "/admin/:path*",
+    "/billing/:path*",
+    "/app/:path*",
+    "/login",
+    "/signup",
+  ],
 };
