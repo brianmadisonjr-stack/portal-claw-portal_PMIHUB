@@ -4,9 +4,7 @@ import path from "node:path";
 import process from "node:process";
 
 import xlsx from "xlsx";
-import prismaPkg from "@prisma/client";
-
-const { PrismaClient } = prismaPkg;
+import { PrismaClient } from "../src/generated/prisma/index.js";
 
 function argValue(flag) {
   const idx = process.argv.indexOf(flag);
@@ -121,8 +119,7 @@ async function main() {
 
   console.log(`Parsed questions: ${parsed.length}${limit ? ` (importing first ${input.length})` : ""}`);
 
-  // Require Prisma schema to include Question/Tag/QuestionTag.
-  // We check by attempting a simple query.
+  // PMIHub schema uses QuestionDomain + PracticeQuestion.
   const prisma = new PrismaClient({
     datasourceUrl: process.env.DATABASE_URL,
   });
@@ -130,17 +127,13 @@ async function main() {
   // Basic connectivity check
   await prisma.$queryRaw`SELECT 1`;
 
-  if (!prisma.question || !prisma.tag || !prisma.questionTag) {
-    throw new Error(
-      "Prisma Client does not include question/tag/questionTag models. Update prisma/schema.prisma in this repo to match the PMIHub question-bank schema and regenerate."
-    );
-  }
+  // Cache domains by (certification,name)
+  const domainCache = new Map();
 
-  const tagCache = new Map();
+  let upsertedQuestions = 0;
   let createdQuestions = 0;
   let skippedQuestions = 0;
-  let createdTags = 0;
-  let createdJoins = 0;
+  let createdDomains = 0;
 
   for (const q of input) {
     const key = stableQuestionKey(q);
@@ -150,53 +143,58 @@ async function main() {
       continue;
     }
 
-    // Upsert question by prompt hash stored in reference field (until schema supports explicit unique hash)
-    // If you prefer, we can add a dedicated unique field later.
-    const existing = await prisma.question.findFirst({ where: { reference: key } });
+    // Domain: we treat the first "Domain" tag (if present) as QuestionDomain.name
+    // Fallback to "General".
+    const domainName = (q.tags.find((t) => t.toLowerCase().includes("domain")) || q.tags[0] || "General")
+      .replace(/^Domain\s*[:\-]?\s*/i, "")
+      .trim()
+      .slice(0, 128);
+
+    const domainKey = `${q.certification}::${domainName}`;
+    let domainId = domainCache.get(domainKey);
+    if (!domainId) {
+      const d = await prisma.questionDomain.upsert({
+        where: { certification_name: { certification: q.certification, name: domainName } },
+        update: {},
+        create: { certification: q.certification, name: domainName },
+        select: { id: true },
+      });
+      domainId = d.id;
+      domainCache.set(domainKey, domainId);
+      createdDomains++;
+    }
+
+    // Idempotency: use referenceText to store the stable hash
+    const existing = await prisma.practiceQuestion.findFirst({
+      where: { certification: q.certification, referenceText: key },
+      select: { id: true },
+    });
+
     if (existing) {
       skippedQuestions++;
       continue;
     }
 
-    const created = await prisma.question.create({
+    await prisma.practiceQuestion.create({
       data: {
         certification: q.certification,
-        type: q.type,
-        prompt: q.prompt,
+        format: "SINGLE_CHOICE",
+        stem: q.prompt,
         choiceA: q.choiceA,
         choiceB: q.choiceB,
         choiceC: q.choiceC,
         choiceD: q.choiceD,
-        correct: q.correct,
+        correctAnswer: q.correct,
         explanation: q.explanation,
-        reference: key,
+        referenceText: key,
+        tags: q.tags,
+        domainId,
       },
       select: { id: true },
     });
+
     createdQuestions++;
-
-    for (const name of q.tags) {
-      const norm = name.trim();
-      let tagId = tagCache.get(norm);
-      if (!tagId) {
-        const t = await prisma.tag.upsert({
-          where: { name: norm },
-          update: {},
-          create: { name: norm },
-          select: { id: true },
-        });
-        tagId = t.id;
-        tagCache.set(norm, tagId);
-        createdTags++; // counts upserts too; acceptable for summary
-      }
-
-      await prisma.questionTag.upsert({
-        where: { questionId_tagId: { questionId: created.id, tagId } },
-        update: {},
-        create: { questionId: created.id, tagId },
-      });
-      createdJoins++;
-    }
+    upsertedQuestions++;
   }
 
   await prisma.$disconnect();
@@ -207,10 +205,10 @@ async function main() {
       {
         dryRun,
         parsed: parsed.length,
+        createdDomains,
         imported: createdQuestions,
         skipped: skippedQuestions,
-        tagsTouched: createdTags,
-        joinsCreated: createdJoins,
+        totalWritten: upsertedQuestions,
       },
       null,
       2
