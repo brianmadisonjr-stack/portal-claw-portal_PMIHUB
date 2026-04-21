@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "@/lib/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export default async function BillingPage() {
   const { session } = await getServerSession();
   if (!session) {

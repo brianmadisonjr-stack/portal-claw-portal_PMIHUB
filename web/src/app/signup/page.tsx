@@ -1,4 +1,7 @@
+import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
+
+export const dynamic = "force-dynamic";
 
 export default function SignupPage() {
   return (
@@ -24,8 +27,10 @@ export default function SignupPage() {
           </div>
         </section>
         <div className="flex-1">
+	 <Suspense fallback={null}>
           <AuthForm variant="signup" />
-        </div>
+         </Suspense> 
+       </div>
       </div>
     </main>
   );

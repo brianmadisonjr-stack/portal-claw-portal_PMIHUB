@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/supabase-server";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProfilePage() {
   const { session } = await getServerSession();
   if (!session) {

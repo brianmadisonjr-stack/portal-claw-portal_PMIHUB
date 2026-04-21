@@ -5,7 +5,7 @@ const PROTECTED_PREFIXES = ["/dashboard", "/profile", "/admin", "/billing", "/ap
 const AUTH_PAGES = ["/login", "/signup"] as const;
 const DEFAULT_APP_ROUTE = "/dashboard";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
 
   const supabase = createServerClient(

@@ -1,24 +1,32 @@
 import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 
-export const supabaseServer = () =>
-  createServerComponentClient({
-    cookies,
-  });
-
-export async function getServerSession() {
-  const supabase = supabaseServer();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  return { supabase, session };
+function supabase() {
+return createServerClient(
+process.env.NEXT_PUBLIC_SUPABASE_URL!,
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+{
+cookies: {
+async getAll() {
+const store = await cookies();
+return store.getAll();
+},
+async setAll(cookiesToSet) {
+const store = await cookies();
+cookiesToSet.forEach(({ name, value, options }) => {
+store.set(name, value, options);
+});
+},
+},
+}
+);
 }
 
-export async function requireServerSession() {
-  const { supabase, session } = await getServerSession();
-  if (!session) {
-    throw new Error("Missing Supabase session on protected server route");
-  }
-  return { supabase, session };
+export const supabaseServer = () => supabase();
+
+export async function getServerSession() {
+const client = supabase();
+const { data, error } = await client.auth.getSession();
+if (error) throw error;
+return { session: data.session };
 }
