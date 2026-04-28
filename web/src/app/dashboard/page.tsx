@@ -14,12 +14,6 @@ export default async function DashboardPage() {
   const userEmail = session.user.email ?? "";
   const cards = [
     {
-      title: "Accounts & Cohorts",
-      description: "Spin up accounts, set stages, and enroll cohorts against the Prisma CRM schema.",
-      href: "/dashboard/cohorts",
-      badge: "CRM",
-    },
-    {
       title: "Readiness Analytics",
       description: "Overlay PracticeQuestion + QuestionAttempt data to see PMP readiness by domain.",
       href: "/dashboard/readiness",
