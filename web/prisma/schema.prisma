@@ -1,11 +1,146 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres"]
   output          = "../src/generated/prisma"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+generator default {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Account {
+  id          String              @id @default(uuid())
+  name        String
+  industry    String?
+  stage       AccountStage        @default(LEAD)
+  ownerEmail  String?
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  memberships AccountMembership[]
+  enrollments Enrollment[]
+  invoices    Invoice[]
+}
+
+model Cohort {
+  id            String        @id @default(uuid())
+  title         String
+  certification Certification
+  startDate     DateTime?
+  endDate       DateTime?
+  capacity      Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  enrollments   Enrollment[]
+}
+
+model Enrollment {
+  id                  String           @id @default(uuid())
+  cohortId            String
+  accountId           String
+  primaryLearnerEmail String?
+  status              EnrollmentStatus @default(PENDING)
+  readinessScore      Int?
+  notes               String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  account             Account          @relation(fields: [accountId], references: [id])
+  cohort              Cohort           @relation(fields: [cohortId], references: [id])
+
+  @@unique([cohortId, accountId])
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  accountId       String
+  amountCents     Int
+  currency        String        @default("USD")
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime?
+  squareInvoiceId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  account         Account       @relation(fields: [accountId], references: [id])
+}
+
+model UserProfile {
+  id             String              @id @default(uuid())
+  supabaseUserId String              @unique
+  email          String?
+  displayName    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  memberships    AccountMembership[]
+}
+
+model AccountMembership {
+  id        String      @id @default(uuid())
+  accountId String
+  userId    String
+  role      AccountRole @default(LEARNER)
+  invitedBy String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  account   Account     @relation(fields: [accountId], references: [id])
+  user      UserProfile @relation(fields: [userId], references: [id])
+
+  @@unique([accountId, userId])
+  @@index([userId])
+}
+
+model QuestionDomain {
+  id            String             @id @default(uuid())
+  certification Certification
+  name          String
+  description   String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  questions     PracticeQuestion[]
+
+  @@unique([certification, name])
+}
+
+model PracticeQuestion {
+  id             String            @id @default(uuid())
+  certification  Certification
+  format         QuestionFormat    @default(SINGLE_CHOICE)
+  stem           String
+  choiceA        String
+  choiceB        String
+  choiceC        String?
+  choiceD        String?
+  correctAnswer  String
+  explanation    String?
+  referenceText  String?
+  difficulty     Int?              @default(3)
+  domainId       String?
+  tags           String[]          @default([])
+  sourceWorkbook String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  domain         QuestionDomain?   @relation(fields: [domainId], references: [id])
+  attempts       QuestionAttempt[]
+
+  @@index([certification])
+}
+
+model QuestionAttempt {
+  id            String           @id @default(uuid())
+  questionId    String
+  learnerEmail  String?
+  selected      String[]
+  correct       Boolean
+  elapsedMs     Int?
+  certification Certification
+  createdAt     DateTime         @default(now())
+  question      PracticeQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([learnerEmail])
 }
 
 enum Certification {
@@ -54,135 +189,4 @@ enum AccountRole {
   INSTRUCTOR
   LEARNER
   BILLING
-}
-
-model Account {
-  id          String              @id @default(uuid())
-  name        String
-  industry    String?
-  stage       AccountStage        @default(LEAD)
-  ownerEmail  String?
-  notes       String?
-  enrollments Enrollment[]
-  invoices    Invoice[]
-  memberships AccountMembership[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-}
-
-model Cohort {
-  id            String        @id @default(uuid())
-  title         String
-  certification Certification
-  startDate     DateTime?
-  endDate       DateTime?
-  capacity      Int?
-  enrollments   Enrollment[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
-
-model Enrollment {
-  id                  String           @id @default(uuid())
-  cohortId            String
-  accountId           String
-  primaryLearnerEmail String?
-  status              EnrollmentStatus @default(PENDING)
-  readinessScore      Int?
-  notes               String?
-  cohort              Cohort           @relation(fields: [cohortId], references: [id])
-  account             Account          @relation(fields: [accountId], references: [id])
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-
-  @@unique([cohortId, accountId])
-}
-
-model Invoice {
-  id              String        @id @default(uuid())
-  accountId       String
-  amountCents     Int
-  currency        String        @default("USD")
-  status          InvoiceStatus @default(DRAFT)
-  dueDate         DateTime?
-  squareInvoiceId String?
-  account         Account       @relation(fields: [accountId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-}
-
-model UserProfile {
-  id             String              @id @default(uuid())
-  supabaseUserId String              @unique
-  email          String?
-  displayName    String?
-  memberships    AccountMembership[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-}
-
-model AccountMembership {
-  id        String      @id @default(uuid())
-  accountId String
-  userId    String
-  role      AccountRole @default(LEARNER)
-  invitedBy String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  account Account     @relation(fields: [accountId], references: [id])
-  user    UserProfile @relation(fields: [userId], references: [id])
-
-  @@unique([accountId, userId])
-  @@index([userId])
-}
-
-model QuestionDomain {
-  id            String             @id @default(uuid())
-  certification Certification
-  name          String
-  description   String?
-  questions     PracticeQuestion[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
-  @@unique([certification, name])
-}
-
-model PracticeQuestion {
-  id             String            @id @default(uuid())
-  certification  Certification
-  format         QuestionFormat    @default(SINGLE_CHOICE)
-  stem           String
-  choiceA        String
-  choiceB        String
-  choiceC        String?
-  choiceD        String?
-  correctAnswer  String
-  explanation    String?
-  referenceText  String?
-  difficulty     Int?              @default(3)
-  domainId       String?
-  tags           String[]          @default([])
-  sourceWorkbook String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  domain         QuestionDomain?   @relation(fields: [domainId], references: [id])
-  attempts       QuestionAttempt[]
-
-  @@index([certification])
-}
-
-model QuestionAttempt {
-  id            String           @id @default(uuid())
-  questionId    String
-  learnerEmail  String?
-  selected      String[]
-  correct       Boolean
-  elapsedMs     Int?
-  certification Certification
-  createdAt     DateTime         @default(now())
-  question      PracticeQuestion @relation(fields: [questionId], references: [id])
-
-  @@index([learnerEmail])
 }

@@ -4,9 +4,9 @@ import path from "node:path";
 import process from "node:process";
 
 import xlsx from "xlsx";
-import prismaPkg from "@prisma/client";
+import pg from "pg";
 
-const { PrismaClient } = prismaPkg;
+const { Pool } = pg;
 
 function argValue(flag) {
   const idx = process.argv.indexOf(flag);
@@ -30,6 +30,8 @@ if (!fs.existsSync(resolved)) {
   process.exit(1);
 }
 
+const workbookLabel = path.basename(resolved);
+
 function normalizeChoiceLetter(v) {
   if (!v) return null;
   const s = String(v).trim().toUpperCase();
@@ -38,75 +40,139 @@ function normalizeChoiceLetter(v) {
 }
 
 function stableQuestionKey(q) {
-  // Stable hash to dedupe across runs
   const payload = [
     q.certification,
-    q.type,
     q.prompt,
     q.choiceA,
     q.choiceB,
-    q.choiceC,
-    q.choiceD,
+    q.choiceC ?? "",
+    q.choiceD ?? "",
     q.correct,
+    q.explanation ?? "",
   ].join("\n---\n");
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
+function toDifficultyScore(label) {
+  if (!label) return null;
+  const normalized = String(label).trim().toLowerCase();
+  if (["easy", "low"].includes(normalized)) return 2;
+  if (["moderate", "medium"].includes(normalized)) return 3;
+  if (["hard", "difficult", "challenging"].includes(normalized)) return 4;
+  return null;
+}
+
 function parseQuestionBankXlsx(xlsxPath) {
   const wb = xlsx.readFile(xlsxPath);
-  const ws = wb.Sheets["Question_Bank"];
-  if (!ws) throw new Error('Sheet "Question_Bank" not found');
+  const preferredSheets = ["Elite_Bank", "Question_Bank"];
+  const sheetName = preferredSheets.find((name) => wb.Sheets[name]) ||
+    wb.SheetNames.find((name) => {
+      const lower = name.toLowerCase();
+      return lower.includes("bank") || lower.includes("exam");
+    });
+  if (!sheetName) throw new Error("Could not find a question sheet (Elite_Bank / Question_Bank).");
+  const ws = wb.Sheets[sheetName];
 
   const aoa = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
-  const headerRowIndex = aoa.findIndex((r) => Array.isArray(r) && r.some((v) => v === "Q#"));
-  if (headerRowIndex === -1) throw new Error("Could not find header row (Q#)");
+  const headerRowIndex = aoa.findIndex(
+    (row) =>
+      Array.isArray(row) &&
+      row.some((cell) => {
+        if (cell == null) return false;
+        const text = String(cell).trim().toLowerCase();
+        return text === "question" || text === "question text" || text === "prompt";
+      })
+  );
+  if (headerRowIndex === -1) throw new Error("Could not find header row (column containing 'Question').");
 
-  const header = aoa[headerRowIndex].map((h) => (h == null ? "" : String(h).trim()));
-  const rows = aoa.slice(headerRowIndex + 1).filter((r) => Array.isArray(r) && r.some((v) => v != null && String(v).trim() !== ""));
+  const headerRaw = aoa[headerRowIndex].map((h) => (h == null ? "" : String(h).trim()));
+  const header = headerRaw.map((h) => h.toLowerCase());
+  const rows = aoa
+    .slice(headerRowIndex + 1)
+    .filter((r) => Array.isArray(r) && r.some((v) => v != null && String(v).trim() !== ""));
 
-  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+  const columnAliases = {
+    prompt: ["question", "prompt", "question text"],
+    optionA: ["option a", "choice a", "a"],
+    optionB: ["option b", "choice b", "b"],
+    optionC: ["option c", "choice c", "c"],
+    optionD: ["option d", "choice d", "d"],
+    correct: ["correct", "correct answer"],
+    explanation: ["correct explanation", "best answer rationale", "explanation", "rationale"],
+    reference: ["pmbok section", "pmbok reference", "reference"],
+    domain: ["domain"],
+    topic: ["topic", "theme"],
+    approach: ["approach", "method"],
+    difficulty: ["difficulty"],
+  };
 
-  function cell(row, name) {
-    const i = idx[name];
-    if (i == null) return null;
-    return row[i] ?? null;
+  function columnIndex(key) {
+    const aliases = columnAliases[key] || [];
+    for (const alias of aliases) {
+      const idx = header.indexOf(alias);
+      if (idx !== -1) return idx;
+    }
+    return null;
+  }
+
+  const columnIndexes = Object.keys(columnAliases).reduce((acc, key) => {
+    acc[key] = columnIndex(key);
+    return acc;
+  }, {});
+
+  function cell(row, key) {
+    const idx = columnIndexes[key];
+    if (idx == null) return null;
+    const value = row[idx];
+    return value == null ? null : value;
   }
 
   const questions = [];
   for (const row of rows) {
-    const prompt = cell(row, "Question");
-    const a = cell(row, "Option A");
-    const b = cell(row, "Option B");
-    const c = cell(row, "Option C");
-    const d = cell(row, "Option D");
-    const correct = normalizeChoiceLetter(cell(row, "Correct Answer"));
+    const prompt = cell(row, "prompt");
+    const a = cell(row, "optionA");
+    const b = cell(row, "optionB");
+    const c = cell(row, "optionC");
+    const d = cell(row, "optionD");
+    const correct = normalizeChoiceLetter(cell(row, "correct"));
 
-    if (!prompt || !a || !b || !c || !d || !correct) continue;
+    if (!prompt || !a || !b || !correct) continue;
 
-    const topic = cell(row, "Topic");
-    const domain = cell(row, "Domain");
-    const difficulty = cell(row, "Difficulty");
-    const approach = cell(row, "Approach");
-    const pmbok = cell(row, "PMBOK Section");
+    const topic = cell(row, "topic");
+    const domain = cell(row, "domain");
+    const difficulty = cell(row, "difficulty");
+    const approach = cell(row, "approach");
+    const reference = cell(row, "reference");
 
-    const explanation = cell(row, "Correct Explanation");
+    const explanation = cell(row, "explanation");
 
-    const tags = [topic, domain, difficulty, approach, pmbok]
-      .map((t) => (t == null ? null : String(t).trim()))
-      .filter((t) => t && t.length > 0);
+    const tags = Array.from(
+      new Set(
+        [topic, domain, difficulty, approach, reference]
+          .map((t) => (t == null ? null : String(t).trim()))
+          .filter((t) => t && t.length > 0)
+      )
+    );
+
+    const refParts = [];
+    if (reference) refParts.push(`Reference: ${String(reference).trim()}`);
+    if (approach) refParts.push(`Approach: ${String(approach).trim()}`);
+    if (topic) refParts.push(`Theme: ${String(topic).trim()}`);
+    const referenceText = refParts.length ? refParts.join(" | ") : null;
 
     const q = {
       certification: "PMP",
-      type: "MCQ",
       prompt: String(prompt).trim(),
       choiceA: String(a).trim(),
       choiceB: String(b).trim(),
-      choiceC: String(c).trim(),
-      choiceD: String(d).trim(),
+      choiceC: c == null ? null : String(c).trim(),
+      choiceD: d == null ? null : String(d).trim(),
       correct,
       explanation: explanation == null ? null : String(explanation).trim(),
-      reference: null,
+      referenceText,
       tags,
+      difficultyScore: toDifficultyScore(difficulty),
+      domain: domain == null ? null : String(domain).trim(),
     };
 
     questions.push(q);
@@ -121,101 +187,93 @@ async function main() {
 
   console.log(`Parsed questions: ${parsed.length}${limit ? ` (importing first ${input.length})` : ""}`);
 
-  // Require Prisma schema to include Question/Tag/QuestionTag.
-  // We check by attempting a simple query.
-  const prisma = new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
-  });
-
-  // Basic connectivity check
-  await prisma.$queryRaw`SELECT 1`;
-
-  if (!prisma.question || !prisma.tag || !prisma.questionTag) {
-    throw new Error(
-      "Prisma Client does not include question/tag/questionTag models. Update prisma/schema.prisma in this repo to match the PMIHub question-bank schema and regenerate."
-    );
+  if (dryRun) {
+    input.slice(0, 5).forEach((q, idx) => {
+      console.log(`[dry-run] ${idx + 1}. ${q.prompt.slice(0, 80)}…`);
+    });
+    console.log(`Dry-run complete — would process ${input.length} rows.`);
+    return;
   }
 
-  const tagCache = new Map();
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const client = await pool.connect();
+  const domainCache = new Map();
   let createdQuestions = 0;
   let skippedQuestions = 0;
-  let createdTags = 0;
-  let createdJoins = 0;
 
-  for (const q of input) {
-    const key = stableQuestionKey(q);
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      'DELETE FROM "QuestionAttempt" WHERE "questionId" IN (SELECT "id" FROM "PracticeQuestion" WHERE "sourceWorkbook" = $1)',
+      [workbookLabel]
+    );
+    await client.query(
+      'DELETE FROM "PracticeQuestion" WHERE "sourceWorkbook" = $1',
+      [workbookLabel]
+    );
 
-    if (dryRun) {
-      console.log(`[dry-run] would upsert question: ${key.slice(0, 10)}… (${q.prompt.slice(0, 60)}…)`);
-      continue;
-    }
-
-    // Upsert question by prompt hash stored in reference field (until schema supports explicit unique hash)
-    // If you prefer, we can add a dedicated unique field later.
-    const existing = await prisma.question.findFirst({ where: { reference: key } });
-    if (existing) {
-      skippedQuestions++;
-      continue;
-    }
-
-    const created = await prisma.question.create({
-      data: {
-        certification: q.certification,
-        type: q.type,
-        prompt: q.prompt,
-        choiceA: q.choiceA,
-        choiceB: q.choiceB,
-        choiceC: q.choiceC,
-        choiceD: q.choiceD,
-        correct: q.correct,
-        explanation: q.explanation,
-        reference: key,
-      },
-      select: { id: true },
-    });
-    createdQuestions++;
-
-    for (const name of q.tags) {
-      const norm = name.trim();
-      let tagId = tagCache.get(norm);
-      if (!tagId) {
-        const t = await prisma.tag.upsert({
-          where: { name: norm },
-          update: {},
-          create: { name: norm },
-          select: { id: true },
-        });
-        tagId = t.id;
-        tagCache.set(norm, tagId);
-        createdTags++; // counts upserts too; acceptable for summary
+    for (const q of input) {
+      let domainId = null;
+      if (q.domain) {
+        const cacheKey = q.domain.toLowerCase();
+        if (domainCache.has(cacheKey)) {
+          domainId = domainCache.get(cacheKey);
+        } else {
+          const upsert = await client.query(
+            'INSERT INTO "QuestionDomain" ("id", "certification", "name", "updatedAt") VALUES ($1, $2, $3, NOW()) ON CONFLICT ("certification", "name") DO UPDATE SET "updatedAt" = NOW() RETURNING "id"',
+            [crypto.randomUUID(), "PMP", q.domain]
+          );
+          domainId = upsert.rows[0].id;
+          domainCache.set(cacheKey, domainId);
+        }
       }
 
-      await prisma.questionTag.upsert({
-        where: { questionId_tagId: { questionId: created.id, tagId } },
-        update: {},
-        create: { questionId: created.id, tagId },
-      });
-      createdJoins++;
+      await client.query(
+        'INSERT INTO "PracticeQuestion" ("id", "certification", "format", "stem", "choiceA", "choiceB", "choiceC", "choiceD", "correctAnswer", "explanation", "referenceText", "difficulty", "domainId", "tags", "sourceWorkbook", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)',
+        [
+          crypto.randomUUID(),
+          "PMP",
+          "SINGLE_CHOICE",
+          q.prompt,
+          q.choiceA,
+          q.choiceB,
+          q.choiceC,
+          q.choiceD,
+          q.correct,
+          q.explanation,
+          q.referenceText,
+          q.difficultyScore,
+          domainId,
+          q.tags,
+          workbookLabel,
+          new Date(),
+        ]
+      );
+      createdQuestions++;
     }
+
+    await client.query("COMMIT");
+
+    console.log("\nDone.");
+    console.log(
+      JSON.stringify(
+        {
+          dryRun: false,
+          parsed: parsed.length,
+          imported: createdQuestions,
+          skipped: skippedQuestions,
+        },
+        null,
+        2
+      )
+    );
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+    await pool.end();
   }
-
-  await prisma.$disconnect();
-
-  console.log("\nDone.");
-  console.log(
-    JSON.stringify(
-      {
-        dryRun,
-        parsed: parsed.length,
-        imported: createdQuestions,
-        skipped: skippedQuestions,
-        tagsTouched: createdTags,
-        joinsCreated: createdJoins,
-      },
-      null,
-      2
-    )
-  );
 }
 
 main().catch((err) => {
