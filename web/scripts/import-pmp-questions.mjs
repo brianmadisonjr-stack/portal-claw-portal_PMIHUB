@@ -39,6 +39,7 @@ function normalizeChoiceLetter(v) {
   return null;
 }
 
+// NOTE: currently unused (kept for future dedupe/import-id generation)
 function stableQuestionKey(q) {
   const payload = [
     q.certification,
@@ -52,6 +53,7 @@ function stableQuestionKey(q) {
   ].join("\n---\n");
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
+void stableQuestionKey;
 
 function toDifficultyScore(label) {
   if (!label) return null;
