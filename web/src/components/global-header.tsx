@@ -1,4 +1,3 @@
-cat > src/components/global-header.tsx <<'EOF'
 'use client';
 
 import * as React from 'react';

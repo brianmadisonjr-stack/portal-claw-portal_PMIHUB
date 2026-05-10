@@ -1,4 +1,3 @@
-cat > src/components/auth-modal.tsx <<'EOF'
 'use client';
 
 import * as React from 'react';
