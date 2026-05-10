@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
 
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4">
@@ -31,7 +33,13 @@ export default function LoginPage() {
           </ul>
         </section>
         <div className="flex-1">
-          <Suspense fallback={null}><AuthForm variant="login" /></Suspense>
+<<<<<<< HEAD
+          <Suspense fallback={null}><AuthForm variant="login|signup" /></Suspense>
+=======
+          <Suspense fallback={null}>
+            <AuthForm variant="login" />
+          </Suspense>
+>>>>>>> origin/main
         </div>
       </div>
     </main>
