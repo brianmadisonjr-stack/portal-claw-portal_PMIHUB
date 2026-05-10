@@ -42,7 +42,7 @@ export default function AuthModal({ open, onClose }: Props) {
             ✕
           </button>
         </div>
-        <AuthForm />
+        <AuthForm variant="login" />
       </div>
     </div>,
     document.body
