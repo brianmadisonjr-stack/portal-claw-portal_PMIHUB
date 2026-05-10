@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import AuthForm from './auth-form';
+import { AuthForm } from './auth-form';
 
 type Props = {
   open: boolean;
