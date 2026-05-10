@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
 
 export default function SignupPage() {
@@ -24,7 +25,7 @@ export default function SignupPage() {
           </div>
         </section>
         <div className="flex-1">
-          <AuthForm variant="signup" />
+          <Suspense fallback={null}><AuthForm variant="signup" /></Suspense>
         </div>
       </div>
     </main>
