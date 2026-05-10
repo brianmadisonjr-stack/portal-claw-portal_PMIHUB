@@ -29,3 +29,4 @@ export async function getServerSession() {
   if (error) throw error;
   return { session: data.session };
 }
+
