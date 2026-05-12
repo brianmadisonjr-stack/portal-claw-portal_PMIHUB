@@ -1,6 +1,7 @@
 import { getServerSession } from "@/lib/supabase-server";
 import { requireSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+import { computeProfileCompleteness } from "@/lib/profile";
 import { ProfileForm } from "./profile-form";
 
 export default async function ProfilePage() {
@@ -9,6 +10,8 @@ export default async function ProfilePage() {
 
   const supabaseUserId = session!.user.id;
   const email = session!.user.email ?? null;
+
+  const prisma = getPrisma();
 
   const profile = await prisma.userProfile.upsert({
     where: { supabaseUserId },
@@ -22,10 +25,12 @@ export default async function ProfilePage() {
     },
   });
 
+  const completeness = computeProfileCompleteness(profile);
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-16">
       <div className="mx-auto w-full max-w-3xl">
-        <ProfileForm initialProfile={profile} />
+        <ProfileForm initialProfile={profile} initialCompleteness={completeness} />
       </div>
     </main>
   );

@@ -73,9 +73,33 @@ model UserProfile {
   supabaseUserId String              @unique
   email          String?
   displayName    String?
+
+  firstName      String?
+  lastName       String?
+  suffix         String?
+
+  street1        String?
+  street2        String?
+  city           String?
+  state          String?
+  postalCode     String?
+  country        String?
+
+  educationLevel EducationLevel?
+  linkedInUrl    String?
+
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   memberships    AccountMembership[]
+}
+
+enum EducationLevel {
+  HIGH_SCHOOL
+  ASSOCIATES
+  BACHELORS
+  MASTERS
+  DOCTORATE
+  OTHER
 }
 
 model AccountMembership {
