@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-client";
@@ -29,7 +29,7 @@ const copy: Record<Mode, { title: string; cta: string; alt: string; altHref: str
   },
 };
 
-export function AuthForm({ variant }: { variant: Mode }) {
+function AuthFormInner({ variant }: { variant: Mode }) {
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = params?.get("next") ?? "/dashboard";
@@ -240,3 +240,14 @@ export function AuthForm({ variant }: { variant: Mode }) {
     </div>
   );
 }
+
+export function AuthForm({ variant }: { variant: Mode }) {
+  return (
+    <Suspense fallback={null}>
+      <AuthFormInner variant={variant} />
+    </Suspense>
+  );
+}
+
+// Exposed for testing and to keep Suspense wrapper minimal.
+export { AuthFormInner };
