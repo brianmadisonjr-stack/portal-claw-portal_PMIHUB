@@ -27,7 +27,7 @@ export default function SignupPage() {
           </div>
         </section>
         <div className="flex-1">
-          <Suspense fallback={null}><AuthForm variant="login|signup" /></Suspense>
+          <Suspense fallback={null}><AuthForm variant="signup" /></Suspense>
           <Suspense fallback={null}>
             <AuthForm variant="signup" />
           </Suspense>
