@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/dashboard-shell";
+import { NewTrainingForm } from "@/components/training/new-training-form";
 import { getServerSession } from "@/lib/supabase-server";
 
 export default async function NewTrainingSessionPage({
@@ -18,24 +18,12 @@ export default async function NewTrainingSessionPage({
   const credentialLabel = credential.toUpperCase();
 
   return (
-    <DashboardShell title="Start a training / study session" subtitle={`Credential: ${credentialLabel}`} userEmail={session.user.email ?? ""}>
-      <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-        <p className="text-sm text-slate-700">
-          This is the starter flow for <span className="font-semibold">{credentialLabel}</span> training/study sessions.
-        </p>
-        <p className="mt-3 text-sm text-slate-600">
-          Next step: capture session goals (domains), duration, and generate a study plan.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-          >
-            Back to dashboard
-          </Link>
-        </div>
-      </div>
+    <DashboardShell
+      title="Start a training / study session"
+      subtitle={`Credential: ${credentialLabel}`}
+      userEmail={session.user.email ?? ""}
+    >
+      <NewTrainingForm credential={credential} />
     </DashboardShell>
   );
 }
