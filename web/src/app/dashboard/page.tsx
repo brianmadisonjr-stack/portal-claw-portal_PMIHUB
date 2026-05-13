@@ -1,9 +1,39 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+
+import { DashboardShell } from "@/components/dashboard-shell";
 import { getServerSession } from "@/lib/supabase-server";
-import { LogoutButton } from "@/components/logout-button";
 
 export const dynamic = "force-dynamic";
+
+type ActivityItem = {
+  id: string;
+  title: string;
+  timestampLabel: string;
+  href?: string;
+};
+
+function EmptyState({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{title}</p>
+          {subtitle ? <p className="mt-1 text-sm text-slate-600">{subtitle}</p> : null}
+        </div>
+      </div>
+      {children ? <div className="mt-4">{children}</div> : null}
+    </div>
+  );
+}
 
 export default async function DashboardPage() {
   const { session } = await getServerSession();
@@ -12,74 +42,102 @@ export default async function DashboardPage() {
   }
 
   const userEmail = session.user.email ?? "";
-  const cards = [
-    {
-      title: "Accounts & Cohorts",
-      description: "Spin up accounts, set stages, and enroll cohorts against the Prisma CRM schema.",
-      href: "/dashboard/cohorts",
-      badge: "CRM",
-    },
-    {
-      title: "Readiness Analytics",
-      description: "Overlay PracticeQuestion + QuestionAttempt data to see PMP readiness by domain.",
-      href: "/dashboard/readiness",
-      badge: "Insights",
-    },
-    {
-      title: "Billing & Invoices",
-      description: "Link Square invoices to Account records and reconcile payments inside the hub.",
-      href: "/dashboard/billing",
-      badge: "Finance",
-    },
-  ];
+
+  // Placeholder data — next iteration will hydrate from DB.
+  const recentActivity: ActivityItem[] = [];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-16">
-      <div className="mx-auto w-full max-w-6xl space-y-8">
-        <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/90 px-6 py-5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-widest text-blue-500">Dashboard</p>
-            <h1 className="text-2xl font-semibold text-slate-900">Welcome back</h1>
-            <p className="text-sm text-slate-500">Signed in as {userEmail}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/profile"
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-            >
-              View profile
-            </Link>
-            <LogoutButton />
-          </div>
-        </header>
+    <DashboardShell
+      title="Welcome back"
+      subtitle="Here’s what’s happening with your training and tests."
+      userEmail={userEmail}
+    >
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Recent activity</p>
+                <p className="mt-1 text-sm text-slate-600">Latest sessions, attempts, and milestones.</p>
+              </div>
+              <Link
+                href="/dashboard/readiness"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                View analytics
+              </Link>
+            </div>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          {cards.map((card) => (
-            <Link
-              key={card.title}
-              href={card.href}
-              className="group rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg"
-            >
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">{card.badge}</span>
-              <h3 className="mt-2 text-lg font-semibold text-slate-900">{card.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{card.description}</p>
-              <span className="mt-4 inline-flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                Explore →
-              </span>
-            </Link>
-          ))}
+            {recentActivity.length ? (
+              <ul className="mt-5 space-y-3">
+                {recentActivity.map((item) => (
+                  <li key={item.id}>
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm transition hover:border-slate-300"
+                      >
+                        <span className="font-medium text-slate-900">{item.title}</span>
+                        <span className="shrink-0 text-xs text-slate-500">{item.timestampLabel}</span>
+                      </Link>
+                    ) : (
+                      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                        <span className="font-medium text-slate-900">{item.title}</span>
+                        <span className="shrink-0 text-xs text-slate-500">{item.timestampLabel}</span>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-white p-5">
+                <p className="text-sm font-medium text-slate-800">No recent activity yet.</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Start a training session or test from the left menu — activity will appear here once attempts are recorded.
+                </p>
+              </div>
+            )}
+          </div>
         </section>
 
-        <section className="rounded-2xl border border-dashed border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
-          <p className="font-semibold text-slate-800">Session metadata</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-            <span>User ID</span>
-            <span className="truncate font-mono text-slate-900">{session.user.id}</span>
-            <span>Role</span>
-            <span className="text-slate-900">authenticated</span>
-          </div>
-        </section>
+        <aside className="space-y-6">
+          <EmptyState
+            title="Last completed test"
+            subtitle="We’ll show your most recent test session and score breakdown here."
+          >
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard/tests/pmp/new"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Start a test
+              </Link>
+              <Link
+                href="/dashboard/training/pmp/new"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+              >
+                Start training
+              </Link>
+            </div>
+          </EmptyState>
+
+          <EmptyState
+            title="Progress"
+            subtitle="This will track readiness by domain and your overall momentum."
+          >
+            <div className="grid gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Overall readiness</p>
+                <p className="mt-2 text-sm text-slate-700">Connect QuestionAttempt data to compute this score.</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Next best action</p>
+                <p className="mt-2 text-sm text-slate-700">Run a short practice set to populate the dashboard.</p>
+              </div>
+            </div>
+          </EmptyState>
+        </aside>
       </div>
-    </main>
+    </DashboardShell>
   );
 }
