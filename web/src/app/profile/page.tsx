@@ -6,7 +6,11 @@ import { ProfileForm } from "./profile-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { session } = await getServerSession();
   requireSession(session, "/profile");
 
@@ -29,10 +33,17 @@ export default async function ProfilePage() {
 
   const completeness = computeProfileCompleteness(profile);
 
+  const qs = await searchParams;
+  const nextPath = typeof qs.next === "string" ? qs.next : "/dashboard";
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-16">
       <div className="mx-auto w-full max-w-3xl">
-        <ProfileForm initialProfile={profile} initialCompleteness={completeness} />
+        <ProfileForm
+          initialProfile={profile}
+          initialCompleteness={completeness}
+          nextPath={nextPath}
+        />
       </div>
     </main>
   );

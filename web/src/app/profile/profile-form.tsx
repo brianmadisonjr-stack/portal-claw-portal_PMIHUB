@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import {
   computeProfileCompleteness,
@@ -58,10 +59,14 @@ function isNonEmpty(value: string) {
 export function ProfileForm({
   initialProfile,
   initialCompleteness,
+  nextPath,
 }: {
   initialProfile: Profile;
   initialCompleteness: Completeness;
+  nextPath: string;
 }) {
+  const router = useRouter();
+
   const [displayName, setDisplayName] = useState(initialProfile.displayName ?? "");
   const [firstName, setFirstName] = useState(initialProfile.firstName ?? "");
   const [lastName, setLastName] = useState(initialProfile.lastName ?? "");
@@ -133,7 +138,7 @@ export function ProfileForm({
     return Object.keys(next).length === 0;
   }
 
-  async function handleSave() {
+  async function handleSave(redirectAfterSave?: boolean) {
     setSaving(true);
     setSaved("idle");
     setError(null);
@@ -173,6 +178,12 @@ export function ProfileForm({
 
     setSaving(false);
     setSaved("saved");
+
+    if (redirectAfterSave && completeness.percent === 100) {
+      router.push(nextPath);
+      return;
+    }
+
     window.setTimeout(() => setSaved("idle"), 2000);
   }
 
@@ -359,15 +370,27 @@ export function ProfileForm({
 
         {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={saving}
             className="rounded-lg border border-slate-200 bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
+
+          {completeness.percent === 100 ? (
+            <button
+              type="button"
+              onClick={() => handleSave(true)}
+              disabled={saving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save & continue"}
+            </button>
+          ) : null}
+
           {saved === "saved" ? <p className="text-sm text-slate-500">Saved.</p> : null}
         </div>
       </section>

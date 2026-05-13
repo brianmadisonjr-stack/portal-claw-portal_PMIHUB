@@ -43,6 +43,12 @@ export default async function DashboardPage() {
 
   const userEmail = session.user.email ?? "";
 
+  const { getPrisma } = await import("@/lib/prisma");
+  const prisma = getPrisma();
+  const profile = await prisma.userProfile.findUnique({
+    where: { supabaseUserId: session.user.id },
+  });
+
   // Placeholder data — next iteration will hydrate from DB.
   const recentActivity: ActivityItem[] = [];
 
@@ -117,6 +123,24 @@ export default async function DashboardPage() {
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
               >
                 Start training
+              </Link>
+            </div>
+          </EmptyState>
+
+          <EmptyState
+            title="Profile"
+            subtitle={
+              profile
+                ? "Your profile is connected."
+                : "Complete your profile to unlock training/tests."
+            }
+          >
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/profile"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+              >
+                Edit profile
               </Link>
             </div>
           </EmptyState>

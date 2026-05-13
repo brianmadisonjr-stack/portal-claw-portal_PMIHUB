@@ -17,6 +17,13 @@ export default async function NewTrainingSessionPage({
   const { credential } = await params;
   const credentialLabel = credential.toUpperCase();
 
+  // Require complete profile before starting training
+  const { requireCompleteProfile } = await import("@/lib/require-profile");
+  await requireCompleteProfile({
+    supabaseUserId: session.user.id,
+    nextPath: `/dashboard/training/${credential}/new`,
+  });
+
   return (
     <DashboardShell
       title="Start a training / study session"

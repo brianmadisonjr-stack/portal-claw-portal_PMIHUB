@@ -17,6 +17,13 @@ export default async function NewTestPage({
   const { credential } = await params;
   const credentialLabel = credential.toUpperCase();
 
+  // Require complete profile before starting tests
+  const { requireCompleteProfile } = await import("@/lib/require-profile");
+  await requireCompleteProfile({
+    supabaseUserId: session.user.id,
+    nextPath: `/dashboard/tests/${credential}/new`,
+  });
+
   return (
     <DashboardShell
       title="Start a new test"
