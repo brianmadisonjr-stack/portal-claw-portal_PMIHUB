@@ -8,14 +8,14 @@ export default function GlobalHeader() {
 
   return (
     <>
-      <header className="w-full border-b bg-white">
+      <header className="w-full border-b border-slate-900/10 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="text-sm font-semibold">PMI Hub</div>
+          <div className="text-sm font-semibold tracking-wide text-slate-900">PM Intelligence Hub</div>
 
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="rounded bg-black px-3 py-2 text-sm font-medium text-white hover:bg-black/90"
+            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
           >
             Log in
           </button>
