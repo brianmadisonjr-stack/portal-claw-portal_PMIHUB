@@ -58,8 +58,34 @@ export default async function DashboardPage() {
       subtitle="Here’s what’s happening with your training and tests."
       userEmail={userEmail}
     >
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2">
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-600">Quick start</p>
+          <p className="mt-2 text-sm text-slate-600">Jump back in with a new session.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/training/pmp/new"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              Start training
+            </Link>
+            <Link
+              href="/dashboard/tests/pmp/new"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300"
+            >
+              Start a test
+            </Link>
+            <Link
+              href="/profile"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300"
+            >
+              Edit profile
+            </Link>
+          </div>
+        </section>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          <section className="lg:col-span-2">
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -161,6 +187,7 @@ export default async function DashboardPage() {
             </div>
           </EmptyState>
         </aside>
+        </div>
       </div>
     </DashboardShell>
   );
