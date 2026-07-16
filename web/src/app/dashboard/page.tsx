@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { DashboardShell } from "@/components/dashboard-shell";
+import { DashboardSummaryCards, type DashboardSummary } from "@/components/dashboard-summary";
 import { getServerSession } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,43 @@ export default async function DashboardPage() {
     where: { supabaseUserId: session.user.id },
   });
 
+  const attemptCount = await prisma.questionAttempt.count({
+    where: {
+      learnerEmail: session.user.email ?? undefined,
+    },
+  });
+
+  const correctCount = await prisma.questionAttempt.count({
+    where: {
+      learnerEmail: session.user.email ?? undefined,
+      correct: true,
+    },
+  });
+
+  const summary: DashboardSummary = {
+    profileComplete: Boolean(
+      profile?.firstName &&
+        profile?.lastName &&
+        profile?.street1 &&
+        profile?.city &&
+        profile?.state &&
+        profile?.postalCode &&
+        profile?.country &&
+        profile?.educationLevel &&
+        profile?.linkedInUrl,
+    ),
+    membershipCount: 0,
+    attempts: {
+      total: attemptCount,
+      correct: correctCount,
+      accuracy: attemptCount ? Math.round((correctCount / attemptCount) * 100) : null,
+      lastAttemptAt: null,
+      lastAttemptQuestionStem: null,
+      lastAttemptCertification: null,
+      lastAttemptCorrect: null,
+    },
+  };
+
   // Placeholder data — next iteration will hydrate from DB.
   const recentActivity: ActivityItem[] = [];
 
@@ -59,6 +97,8 @@ export default async function DashboardPage() {
       userEmail={userEmail}
     >
       <div className="space-y-6">
+        <DashboardSummaryCards summary={summary} />
+
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-600">Quick start</p>
           <p className="mt-2 text-sm text-slate-600">Jump back in with a new session.</p>
