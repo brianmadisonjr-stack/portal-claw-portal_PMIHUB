@@ -4,15 +4,9 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { DashboardSummaryCards, type DashboardSummary } from "@/components/dashboard-summary";
 import { getServerSession } from "@/lib/supabase-server";
+import { getMe } from "@/lib/me";
 
 export const dynamic = "force-dynamic";
-
-type ActivityItem = {
-  id: string;
-  title: string;
-  timestampLabel: string;
-  href?: string;
-};
 
 function EmptyState({
   title,
@@ -43,6 +37,8 @@ export default async function DashboardPage() {
   }
 
   const userEmail = session.user.email ?? "";
+
+  const me = await getMe();
 
   const { getPrisma } = await import("@/lib/prisma");
   const prisma = getPrisma();
@@ -87,14 +83,21 @@ export default async function DashboardPage() {
     },
   };
 
-  // Placeholder data — next iteration will hydrate from DB.
-  const recentActivity: ActivityItem[] = [];
+    const recentAttempts = session.user.email
+    ? await prisma.questionAttempt.findMany({
+        where: { learnerEmail: session.user.email },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        include: { question: { select: { stem: true, domain: { select: { name: true } } } } },
+      })
+    : [];
 
   return (
     <DashboardShell
       title="Welcome back"
       subtitle="Here’s what’s happening with your training and tests."
       userEmail={userEmail}
+      userRoles={me?.roles ?? []}
     >
       <div className="space-y-6">
         <DashboardSummaryCards summary={summary} />
@@ -140,22 +143,22 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {recentActivity.length ? (
+            {recentAttempts.length ? (
               <ul className="mt-5 space-y-3">
-                {recentActivity.map((item) => (
-                  <li key={item.id}>
-                    {item.href ? (
+                {recentAttempts.map((attempt) => (
+                  <li key={attempt.id}>
+                    {true ? (
                       <Link
-                        href={item.href}
+                        href="/dashboard/attempts"
                         className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm transition hover:border-slate-300"
                       >
-                        <span className="font-medium text-slate-900">{item.title}</span>
-                        <span className="shrink-0 text-xs text-slate-500">{item.timestampLabel}</span>
+                        <span className="font-medium text-slate-900">{`${attempt.correct ? "Correct" : "Miss"}: ${attempt.question.domain?.name ?? "Practice"}` }</span>
+                        <span className="shrink-0 text-xs text-slate-500">{new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", hour: "numeric", minute: "2-digit" }).format(attempt.createdAt)}</span>
                       </Link>
                     ) : (
                       <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                        <span className="font-medium text-slate-900">{item.title}</span>
-                        <span className="shrink-0 text-xs text-slate-500">{item.timestampLabel}</span>
+                        <span className="font-medium text-slate-900">{`${attempt.correct ? "Correct" : "Miss"}: ${attempt.question.domain?.name ?? "Practice"}` }</span>
+                        <span className="shrink-0 text-xs text-slate-500">{new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", hour: "numeric", minute: "2-digit" }).format(attempt.createdAt)}</span>
                       </div>
                     )}
                   </li>

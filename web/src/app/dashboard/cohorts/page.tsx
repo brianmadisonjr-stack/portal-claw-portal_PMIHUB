@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "@/lib/supabase-server";
+import { getMe } from "@/lib/me";
+import { requireRoleOrRedirect } from "@/components/dashboard-gate";
 
 export const dynamic = "force-dynamic";
 

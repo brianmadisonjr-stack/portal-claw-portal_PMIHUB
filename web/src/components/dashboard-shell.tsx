@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
+import { RoleBadge } from "@/components/role-badge";
 
 export type CredentialType = {
   key: string;
@@ -33,12 +34,14 @@ export function DashboardShell({
   title,
   subtitle,
   userEmail,
+  userRoles,
   credentialTypes = DEFAULT_CREDENTIAL_TYPES,
   children,
 }: {
   title: string;
   subtitle?: string;
   userEmail?: string;
+  userRoles?: string[];
   credentialTypes?: CredentialType[];
   children: React.ReactNode;
 }) {
@@ -50,6 +53,13 @@ export function DashboardShell({
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">PM Intelligence Hub</p>
             <p className="mt-2 text-base font-semibold text-slate-900">{title}</p>
             {userEmail ? <p className="mt-1 text-sm text-slate-500">{userEmail}</p> : null}
+            {userRoles?.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {userRoles.map((role) => (
+                  <RoleBadge key={role} role={role} />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <nav className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
