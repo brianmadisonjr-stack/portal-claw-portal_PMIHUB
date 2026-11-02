@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerSession } from "@/lib/supabase-server";
-import { getMe } from "@/lib/me";
-import { requireRoleOrRedirect } from "@/components/dashboard-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -106,13 +104,12 @@ export default async function BillingPage() {
               <p className="text-sm text-slate-500">This table is mocked for MVP navigation.</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 md:mt-0">
-              <button
-                type="button"
-                disabled
-                className="cursor-not-allowed rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+              <Link
+                href="/api/invoices/export.csv"
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
               >
                 Export CSV
-              </button>
+              </Link>
               <button
                 type="button"
                 disabled

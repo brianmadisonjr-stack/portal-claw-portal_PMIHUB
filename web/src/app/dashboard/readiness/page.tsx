@@ -34,14 +34,6 @@ export default async function ReadinessPage() {
 
   const overallAccuracy = attemptsTotal ? Math.round((correctTotal / attemptsTotal) * 100) : null;
 
-  const byDomainRaw = email
-    ? await prisma.questionAttempt.groupBy({
-        by: ["questionId"],
-        where: { learnerEmail: email },
-        _count: { _all: true },
-      })
-    : [];
-
   // Prisma groupBy can't join domain directly; do a single query for attempts with domain and aggregate in JS.
   const attempts = email
     ? await prisma.questionAttempt.findMany({
